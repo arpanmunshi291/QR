@@ -1,0 +1,105 @@
+// Prisma schema for QuickQR
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth (NextAuth / Auth.js Prisma Adapter) ─────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Application models ───────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  qrCodes  QRCode[]
+}
+
+model QRCode {
+  id          String   @id @default(cuid())
+  userId      String
+  originalUrl String
+  shortCode   String   @unique
+  isDynamic   Boolean  @default(false)
+  
+  // Customization options
+  pattern          String? @default("square")
+  eyeStyle         String? @default("square")
+  logoUrl          String?
+  primaryColor     String? @default("#0f172a")
+  backgroundColor  String? @default("#ffffff")
+  frameStyle       String?
+  frameText        String?
+  template         String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scans Scan[]
+
+  @@index([userId])
+  @@index([shortCode])
+}
+
+model Scan {
+  id        String   @id @default(cuid())
+  qrId      String
+  timestamp DateTime @default(now())
+  location  String?
+  device    String?
+
+  qrCode QRCode @relation(fields: [qrId], references: [id], onDelete: Cascade)
+
+  @@index([qrId])
+}

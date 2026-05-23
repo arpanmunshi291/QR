@@ -34,6 +34,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      authorization: {
+        params: {
+          // Disable PKCE — fixes "Invalid code verifier" on Vercel serverless
+          code_challenge_method: "",
+        },
+      },
     }),
     Credentials({
       name: "credentials",
@@ -69,19 +75,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
+  session: {
+    strategy: "jwt",
+  },
   callbacks: {
-    async session({ session, user, token }) {
-      if (session.user) {
-        // database strategy: user object is available
-        if (user?.id) session.user.id = user.id;
-        // jwt strategy: token is available
-        else if (token?.id) session.user.id = token.id as string;
+    async jwt({ token, user, account, profile }) {
+      if (user) {
+        token.id = user.id;
+      }
+      // For Google OAuth — look up user in DB by email to get the id
+      if (account?.provider === "google" && profile?.email) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: profile.email },
+          });
+          if (dbUser) token.id = dbUser.id;
+        } catch {
+          // ignore DB errors, token will still work
+        }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.id as string;
       }
       return session;
-    },
-    async jwt({ token, user }) {
-      if (user) token.id = user.id;
-      return token;
     },
   },
 });

@@ -7,6 +7,7 @@ import NextAuth from "next-auth";
 export const { auth } = NextAuth({
   providers: [],
   secret: process.env.AUTH_SECRET,
+  trustHost: true,
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token }) {

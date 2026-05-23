@@ -29,6 +29,7 @@ export const signUpSchema = z
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
@@ -69,9 +70,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+      }
+      // For OAuth providers, fetch the user id from DB
+      if (account?.provider === "google" && !token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email! },
+        });
+        if (dbUser) token.id = dbUser.id;
       }
       return token;
     },

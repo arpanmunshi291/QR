@@ -8,14 +8,10 @@ export const { auth } = NextAuth({
   providers: [],
   secret: process.env.AUTH_SECRET,
   trustHost: true,
-  session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token }) {
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        (session.user as { id?: string }).id = token.id as string;
+    async session({ session, user }) {
+      if (session.user && user?.id) {
+        session.user.id = user.id;
       }
       return session;
     },

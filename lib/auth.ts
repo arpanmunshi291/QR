@@ -70,27 +70,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.id = user.id;
-      }
-      // For OAuth providers, fetch the user id from DB
-      if (account?.provider === "google" && !token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email! },
-        });
-        if (dbUser) token.id = dbUser.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string;
+    async session({ session, user, token }) {
+      if (session.user) {
+        // database strategy: user object is available
+        if (user?.id) session.user.id = user.id;
+        // jwt strategy: token is available
+        else if (token?.id) session.user.id = token.id as string;
       }
       return session;
     },
-  },
-  session: {
-    strategy: "jwt",
+    async jwt({ token, user }) {
+      if (user) token.id = user.id;
+      return token;
+    },
   },
 });
